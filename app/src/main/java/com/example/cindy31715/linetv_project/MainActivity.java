@@ -6,6 +6,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
@@ -58,12 +60,16 @@ public class MainActivity extends AppCompatActivity {
     private Adapter_DramaList adapter_dramaList=null;
     private ClassDramaInfo dramaInfo;
     private ArrayList<ClassDramaInfo> Dramalist_ = new ArrayList<ClassDramaInfo>();
+    private ArrayList<ClassDramaInfo> Dramalist_off = new ArrayList<ClassDramaInfo>();
     private SearchView searchView;
 //    private ArrayList<Map<String, Object>> Dramalist = new ArrayList<Map<String, Object>>();
     /*---network--*/
     private ConnectivityManager manager;
-
     private SwipeRefreshLayout mSwipeRefreshLayout;
+    /*---資料庫--*/
+    private static final String DBname = "DramaList.db";
+    private static final int DBversion = 1;
+    private DBHelper dbHelper;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,20 +79,38 @@ public class MainActivity extends AppCompatActivity {
         searchView.setIconifiedByDefault(false);// 關閉icon切換
         searchView.setFocusable(false); // 不要進畫面就跳出輸入鍵盤
 
+        dbHelper = new DBHelper(this,DBname,null,1);
+        loadSqlite();
+        Toast.makeText(this,"提示：下拉可更新",Toast.LENGTH_LONG).show();
+
         /*檢查網路*/
-        if (checkNetworkState()) {
-            setSearch_function();
-            Toast.makeText(this,"提示：下拉可更新",Toast.LENGTH_LONG).show();
-            loadJson();
+        if (Dramalist_off!=null){
+            adapter_dramaList = new Adapter_DramaList(Dramalist_off,MainActivity.this);
+            DramaListView.setAdapter(adapter_dramaList);
+            DramaListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                    Intent it = new Intent(MainActivity.this,DramaDetailActivity.class);
+                    it.putExtra("drama_detail",adapter_dramaList.getItem(i));
+                    startActivity(it);
+
+                }
+            });
+        }else{
+            if (checkNetworkState()){
+                setSearch_function();
+                loadJson();
+            }
         }
 
         mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
                 if (checkNetworkState()) {
+                    mSwipeRefreshLayout.setRefreshing(false);
                     setSearch_function();
                     loadJson();
-                    mSwipeRefreshLayout.setRefreshing(false);
+
                 }
 
             }
@@ -96,9 +120,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void init(){
+
         DramaListView = (ListView)findViewById(R.id.drama_listview);
         searchView = (SearchView) findViewById(R.id.search_view);
         mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.refresh_layout);
+    }
+
+
+    private void loadSqlite(){
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        Cursor cursor = db.rawQuery("select * from DramaList",null);
+        cursor.moveToFirst();
+        while (!cursor.isAfterLast()){
+            ClassDramaInfo dif=new ClassDramaInfo(cursor.getInt(0),cursor.getString(1),cursor.getInt(2),cursor.getString(3),
+                    cursor.getString(4),cursor.getFloat(5));
+            Log.d("ccc"," "+cursor.getString(3));
+            Dramalist_off.add(dif);
+            cursor.moveToNext();
+        }
+        cursor.close();
+        db.close();
     }
     private boolean checkNetworkState() {
         boolean flag = false;
@@ -195,15 +236,9 @@ public class MainActivity extends AppCompatActivity {
 
 
                         dramaInfo = new ClassDramaInfo(drama_id,name,total_views,created_at,thumb,rating);
-//                        Map<String,Object> map = new HashMap<String,Object>();
-//                        map.put("drama_id",drama_id);
-//                        map.put("name",name);
-//                        map.put("total_views",total_views);
-//                        map.put("created_at",created_at);
-//                        map.put("thumb",thumb);
-//                        map.put("rating",rating);
-
+//
                         Dramalist_.add(dramaInfo);
+                        dbHelper.insertDrama(dramaInfo);
 //                        Dramalist.add(map);
 
                         Log.d("---", "drama_id : "+drama_id+" name : "+name);
@@ -262,6 +297,7 @@ public class MainActivity extends AppCompatActivity {
 
         }
     };
+
 
 }
 

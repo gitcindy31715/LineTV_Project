@@ -79,7 +79,7 @@ public class Adapter_DramaList extends BaseAdapter implements Filterable {
         //設定控制元件的資料
         viewHolder.name.setText("劇名："+Dramalist.get(position).getName());
         viewHolder.created_at.setText("出品時間："+Dramalist.get(position).getCreated_at().substring(0,10));
-        viewHolder.rating.setText("評價："+String.valueOf(Dramalist.get(position).getRating()));
+        viewHolder.rating.setText("評價："+String.valueOf(Dramalist.get(position).getRating()).substring(0,3));
         viewHolder.ratingBar.setRating((float)Dramalist.get(position).getRating());
         Log.d("***","thumb : "+Dramalist.get(position).getThumb());
 
